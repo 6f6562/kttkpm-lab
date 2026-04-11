@@ -1,0 +1,21 @@
+{
+  "name": "bai02",
+  "version": "1.0.0",
+  "description": "Demo phân vùng DB: ngang (giới), dọc (ảnh), theo hàm (tuổi) — Sequelize + MariaDB",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "seed": "node seed/seedData.js",
+    "seed:soft": "node seed/seedData.js --soft"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mariadb": "^3.5.2",
+    "mysql2": "^3.12.0",
+    "sequelize": "^6.37.5"
+  }
+}

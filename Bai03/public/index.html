@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bài 03 — Order / Payment / Shipping (1 DB)</title>
+  <style>
+    :root {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #1a1a1a;
+      background: #f4f6f8;
+    }
+    body { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+    h1 { font-size: 1.35rem; margin-top: 0; }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    label { display: block; font-size: .85rem; color: #555; margin-bottom: .35rem; }
+    input[type="text"] {
+      width: 100%; max-width: 420px; padding: .5rem .65rem;
+      border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;
+    }
+    button {
+      margin: .35rem .35rem .35rem 0;
+      padding: .45rem .85rem;
+      border: none; border-radius: 6px; cursor: pointer;
+      font-size: .9rem;
+    }
+    .primary { background: #2563eb; color: #fff; }
+    .secondary { background: #e5e7eb; color: #111; }
+    .danger { background: #dc2626; color: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: .5rem .4rem; border-bottom: 1px solid #eee; }
+    th { color: #666; font-weight: 600; }
+    .status { font-weight: 600; }
+    .status.CREATED { color: #ca8a04; }
+    .status.PAID { color: #2563eb; }
+    .status.SHIPPED { color: #16a34a; }
+    .status.DELIVERED { color: #6b7280; }
+    .msg { font-size: .85rem; margin-top: .5rem; white-space: pre-wrap; }
+    .msg.err { color: #b91c1c; }
+    .msg.ok { color: #15803d; }
+    .hint { font-size: .8rem; color: #6b7280; margin-top: .75rem; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <h1>Bài 03 — Kiến trúc theo module (Order · Payment · Shipping · một MongoDB)</h1>
+
+  <div class="card">
+    <label for="item">Tạo đơn mới</label>
+    <input id="item" type="text" placeholder="Ví dụ: Cà phê hạt" />
+    <div style="margin-top:.5rem">
+      <button class="primary" type="button" id="btnCreate">Tạo đơn</button>
+      <button class="secondary" type="button" id="btnRefresh">Làm mới danh sách</button>
+    </div>
+    <div class="msg" id="formMsg"></div>
+  </div>
+
+  <div class="card">
+    <strong>Danh sách đơn</strong>
+    <p class="hint">Luồng: <code>CREATED</code> → thanh toán → <code>PAID</code> → giao hàng → <code>SHIPPED</code>.</p>
+    <div style="overflow-x:auto;margin-top:.75rem">
+      <table>
+        <thead>
+          <tr>
+            <th>Sản phẩm</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="msg" id="listMsg"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function api(path, opts) {
+      const r = await fetch(path, {
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+      });
+      const text = await r.text();
+      let data;
+      try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+      if (!r.ok) {
+        const err = (data && data.error) ? data.error : (typeof data === "string" ? data : r.statusText);
+        throw new Error(err);
+      }
+      return data;
+    }
+
+    function setMsg(el, text, ok) {
+      el.textContent = text || "";
+      el.className = "msg " + (ok ? "ok" : (text ? "err" : ""));
+    }
+
+    async function loadOrders() {
+      const listMsg = $("listMsg");
+      try {
+        const orders = await api("/orders");
+        const tbody = $("rows");
+        tbody.innerHTML = "";
+        for (const o of orders) {
+          const tr = document.createElement("tr");
+          const id = o._id;
+          const payDisabled = o.status !== "CREATED";
+          const shipDisabled = o.status !== "PAID";
+          tr.innerHTML = `
+            <td>${escapeHtml(o.item)}</td>
+            <td><span class="status ${o.status}">${escapeHtml(o.status)}</span></td>
+            <td>
+              <button class="secondary" data-act="pay" data-id="${id}" ${payDisabled ? "disabled" : ""}>Thanh toán</button>
+              <button class="secondary" data-act="ship" data-id="${id}" ${shipDisabled ? "disabled" : ""}>Giao hàng</button>
+            </td>`;
+          tbody.appendChild(tr);
+        }
+        setMsg(listMsg, "");
+      } catch (e) {
+        setMsg(listMsg, "Lỗi tải danh sách: " + e.message, false);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    $("btnCreate").onclick = async () => {
+      const item = $("item").value;
+      const formMsg = $("formMsg");
+      try {
+        await api("/orders", { method: "POST", body: JSON.stringify({ item }) });
+        $("item").value = "";
+        setMsg(formMsg, "Đã tạo đơn.", true);
+        await loadOrders();
+      } catch (e) {
+        setMsg(formMsg, e.message, false);
+      }
+    };
+
+    $("btnRefresh").onclick = () => loadOrders();
+
+    document.getElementById("rows").addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-act]");
+      if (!btn) return;
+      const id = btn.getAttribute("data-id");
+      const act = btn.getAttribute("data-act");
+      const listMsg = $("listMsg");
+      try {
+        if (act === "pay") await api("/payments/" + id, { method: "POST" });
+        if (act === "ship") await api("/shipping/" + id, { method: "POST" });
+        setMsg(listMsg, "Cập nhật thành công.", true);
+        await loadOrders();
+      } catch (e) {
+        setMsg(listMsg, e.message, false);
+      }
+    });
+
+    loadOrders();
+  </script>
+</body>
+</html>

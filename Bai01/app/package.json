@@ -1,0 +1,16 @@
+{
+  "name": "bai01-docker-demo",
+  "version": "1.0.0",
+  "description": "Bai01: multi-stage Docker image + Postgres (volume persistence)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

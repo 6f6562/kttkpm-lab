@@ -1,0 +1,42 @@
+
+1. Image opti + Image save data
+	- Image:
+			- build image: 3-4 stages--> dung lượng
+	- pull image postgres-->container--> insert data--> build image
+		--> run container--> data?
+
+2. Xem: (20')
+		- Database partition: (SQl Server)
+					- Horizontal-row
+					- Vertical-column
+					- Function (logic)
+		--> Tăng performance
+					
+		Ví dụ về 3 phần này: 
+				- DB (2 table_user_01 và table_use_02)--> condition--> 01 or 02 
+					(nam: table_user_01, nữ table_user_02)...> spring boot
+				- Vertical
+				- Function	
+				
+	3. mono--> 3 functions--> service-based architecture--> 1 DB (code BE + FE + DB)
+	
+	order, payment, shipping--> service-base--> 1db (chạy)
+	
+	Event Driven Architecture
+	
+	spring boot--> write activeMQ 1 message?
+	spring boot--> read (mq)--> do...
+	
+	4. Chủ đề: Event choreography vs orchestration.
+		Bài tập
+		Thiết kế workflow đặt đơn thực phẩm:
+		Sử dụng Event Choreography.
+		Sử dụng Event Orchestration (có 1 orchestrator).
+		So sánh ưu nhược điểm.
+		Quyết định mô hình phù hợp với scaling + resilience.
+
+5. Search: springboot, reactjs, Sqlserver
+		FE (js)-BE (java)-DB (stored...) (debounce)
+		
+6. SQL native(JDBC)-Hirbernate
+		
