@@ -1,96 +1,105 @@
-# Bài tập thực hành — Design Patterns (KTPM)
+# Bài tập thực hành — Kiến trúc phần mềm (KTPM)
 
-Repository chứa 2 bài lab minh họa các Design Pattern trong Java.
+Repository chứa 2 bài lab Node.js/Express minh họa Message Queue, JWT Authentication và Clean Architecture.
 
-| Bài | Thư mục | Patterns |
+| Bài | Thư mục | Nội dung |
 |-----|---------|----------|
-| Bài 1 | [`singleton_factory/`](singleton_factory/) | Singleton, Abstract Factory, Factory Method |
-| Bài 2 | [`State_Strategy_Decorator/`](State_Strategy_Decorator/) | State, Strategy, Decorator |
+| Bài 1 | [`Ex1+2/`](Ex1+2/) | Ex1: Message Queue Simulator · Ex2: JWT Authentication |
+| Bài 2 | [`Ex3/`](Ex3/) | Clean Architecture — Hệ thống đặt hàng đồng bộ |
 
-**Yêu cầu:** Java 21+, Maven 3.6+
+**Yêu cầu:** Node.js 18+, npm, Docker (RabbitMQ cho Ex1), MariaDB (cho Ex3)
 
 ---
 
-## Bài 1 — Hệ thống gửi thông báo đa nền tảng
+## Bài 1 — Ex1 + Ex2
 
-> Chi tiết: [`singleton_factory/README.md`](singleton_factory/README.md)
+Thư mục [`Ex1+2/`](Ex1+2/) gồm 2 bài tập trong cùng một project Express.
 
-Hệ thống gửi thông báo Email/SMS trên nền tảng Web và Mobile, kết hợp 3 pattern:
+### Ex1 — Message Queue Simulator (RabbitMQ)
 
-- **Singleton** — `SettingManager`: quản lý cấu hình tập trung, thread-safe
-- **Abstract Factory** — `WebFactory`, `MobileFactory`: tạo nhóm sản phẩm theo nền tảng
-- **Factory Method** — `createNotification(type)`: chọn loại thông báo (EMAIL/SMS)
+Mô phỏng Producer/Consumer với RabbitMQ qua giao diện web:
 
-```java
-NotificationService service = new NotificationService();
-service.sendNotification("WEB", "EMAIL", "Xin chào từ Web!");
-service.sendNotification("MOBILE", "SMS", "Xin chào từ Mobile!");
+- **Producer** — `producer.js`: gửi message vào queue `task_queue`
+- **Consumer** — `consumer.js`: nhận và xử lý message nền (delay 2s)
+- **Web UI** — gửi message, peek queue, consume thủ công qua Management API
+
+```bash
+# Khởi động RabbitMQ (Docker)
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+
+cd Ex1+2
+npm install
+npm start                    # http://localhost:3000
+node consumer.js             # chạy consumer nền (terminal riêng)
+```
+
+### Ex2 — JWT Authentication
+
+API xác thực với Access Token + Refresh Token, phân quyền theo role:
+
+- **Login** — `POST /auth/login`: cấp token (admin / guest)
+- **Refresh** — `POST /auth/refresh`: làm mới access token
+- **Profile** — `GET /auth/profile`: route được bảo vệ bởi `verifyToken`
+- **Admin** — `GET /auth/admin`: chỉ role `admin` qua `checkRole`
+
+```bash
+# Cần file .env với ACCESS_TOKEN_SECRET và REFRESH_TOKEN_SECRET
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin"}'
+```
+
+---
+
+## Bài 2 — Ex3: Hệ thống đặt hàng (Clean Architecture)
+
+> Cấu trúc chi tiết: [`Ex3/system-structure.md`](Ex3/system-structure.md)
+
+Project áp dụng Clean Architecture với 4 tầng:
+
+- **Domain** — `Order` entity, `IOrderRepository`, `IMailer` interface
+- **Application** — `CreateOrderSync` use case: lưu DB → gửi email
+- **Infrastructure** — Sequelize/MariaDB, `SmtpMailer` (giả lập delay 3s)
+- **Presentation** — `OrderController`, route `/order/sync`
+
+```javascript
+// Luồng: POST /order/sync → CreateOrderSync.execute()
+// 1. Tạo Order entity
+// 2. Lưu qua SequelizeOrderRepository
+// 3. Gửi email qua SmtpMailer (chờ 3 giây)
 ```
 
 **Chạy thử:**
 
 ```bash
-cd singleton_factory
-mvn clean compile
-mvn exec:java -Dexec.mainClass="iuh.fit.notification.demo.NotificationDemo"
-mvn test
-```
-
----
-
-## Bài 2 — Hệ thống thương mại điện tử
-
-> Chi tiết: [`State_Strategy_Decorator/README.md`](State_Strategy_Decorator/README.md)
-
-Minh họa 3 pattern trong bối cảnh e-commerce:
-
-- **State** — quản lý trạng thái đơn hàng: New → Processing → Delivered / Canceled
-- **Strategy** — tính thuế linh hoạt: VAT (10%), Consumption (20%), Luxury (30%)
-- **Decorator** — thanh toán mở rộng: phí xử lý, mã giảm giá trên CreditCard/PayPal
-
-```java
-Order order = new Order("ORD-001");
-order.addProduct(new Product("Laptop", 15000000, new VatTax()));
-order.nextStep(); // → Processing
-order.nextStep(); // → Delivered
-
-Payment payment = new CreditCardPayment(1000000);
-payment = new ProcessingFeeDecorator(payment, 50000);
-payment = new DiscountDecorator(payment, 100000);
-```
-
-**Chạy thử:**
-
-```bash
-cd State_Strategy_Decorator
-mvn clean compile
-mvn exec:java -Dexec.mainClass="iuh.fit.Demo"
-mvn test
+cd Ex3
+npm install
+npm start                      # http://localhost:3000/order
 ```
 
 ---
 
 ## Minh chứng
 
-### Bài 1
+### Bài 1 — Ex1 (tiền tố `1_`)
 
-**1. RabbitMQ Management — queue `order_queue`**
+**1. RabbitMQ Management — queue `task_queue`**
 
-![RabbitMQ order_queue](img/1_1.png)
+![RabbitMQ task_queue](img/1_1.png)
 
-**2. ProducerApp — gửi 3 message Order**
+**2. Producer — gửi message vào queue**
 
-![ProducerApp output](img/1_2.png)
+![Producer output](img/1_2.png)
 
-**3. ConsumerApp — nhận và xử lý message**
+**3. Consumer — nhận và xử lý message**
 
-![ConsumerApp output](img/1_3.png)
+![Consumer output](img/1_3.png)
 
 **4. Docker — container RabbitMQ đang chạy**
 
 ![Docker RabbitMQ](img/1_4.png)
 
-**5. Message Queue Simulator — gửi/nhận message qua giao diện web**
+**5. Message Queue Simulator — peek message trong queue**
 
 ![Queue Simulator - Peek](img/1_5.png)
 
@@ -98,7 +107,7 @@ mvn test
 
 ![Queue Simulator - Consume](img/1_6.png)
 
-### Bài 2
+### Bài 1 — Ex2 (tiền tố `2_`)
 
 **1. Đăng nhập admin — `POST /auth/login`**
 
